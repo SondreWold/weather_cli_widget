@@ -54,28 +54,51 @@ struct Detail {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Details {
+struct DetailPrecipation {
+    precipitation_amount: f32,
+}
+
+impl Default for DetailPrecipation {
+    fn default() -> DetailPrecipation {
+        DetailPrecipation {
+            precipitation_amount: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct InstantObject {
     details: Detail,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Instant {
-    instant: Details,
+struct Next1HoursObject {
+    details: DetailPrecipation,
+}
+
+impl Default for Next1HoursObject {
+    fn default() -> Next1HoursObject {
+        let detpre: DetailPrecipation = DetailPrecipation {
+            ..Default::default()
+        };
+        Next1HoursObject { details: detpre }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Data {
-    data: Instant,
+struct DataObject {
+    instant: InstantObject,
+    next_1_hours: Option<Next1HoursObject>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Timeseries {
-    timeseries: Vec<Data>,
+struct TimeseriesObject {
+    data: DataObject,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Properties {
-    properties: Timeseries,
+    timeseries: Vec<TimeseriesObject>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -88,8 +111,6 @@ fn main() {
     let config: Config = Config::new(&args);
     let hours: usize = config.hours;
     let location: Location = Location::new();
-    //println!("Current latitude: {:?}", location.lat);
-    //println!("Current longitude: {:?}", location.lon);
     let req_str = format!(
         "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={}&lon={}",
         location.lat, location.lon
@@ -98,11 +119,13 @@ fn main() {
         Ok(response) => response,
         Err(error) => panic!("Failed to fetch weather data from YR: {:?}", error),
     };
-    let obj: Properties = match response.json() {
+
+    let obj: YrResponse = match response.json() {
         Ok(prop) => prop,
         Err(error) => panic!("Failed to parse json: {:?}", error),
     };
     let mut temperatures: f32 = 0.0;
+    let mut rain: f32 = 0.0;
     for hour in 0..hours {
         temperatures = temperatures
             + obj.properties.timeseries[hour]
@@ -110,10 +133,14 @@ fn main() {
                 .instant
                 .details
                 .air_temperature;
+        if let Some(x) = obj.properties.timeseries[hour].data.next_1_hours.as_ref() {
+            rain += x.details.precipitation_amount;
+        }
     }
     let avg = temperatures / hours as f32;
     println!(
         "Average temperature for the next {} hour(s) is going to be {}",
         hours, avg
     );
+    println!("Total precipation: {}", rain);
 }
