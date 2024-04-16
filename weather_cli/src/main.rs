@@ -139,8 +139,8 @@ fn main() {
     }
     let avg = temperatures / hours as f32;
     println!(
-        "Average temperature for the next {} hour(s) is going to be {}",
+        "Average temperature for the next {} hour(s) is going to be {:.2}",
         hours, avg
     );
-    println!("Total precipation: {}", rain);
+    println!("Total precipation: {:.2}", rain);
 }
